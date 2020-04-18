@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 using cw_3.DAL;
@@ -14,7 +15,7 @@ namespace cw_3.Controllers
     public class StudentsController : ControllerBase
     {
         private readonly IDbService _dbService;
-
+        public readonly string conString = "Data Source=db-mssql;Initial Catalog=s19270;Integrated Security=True";
         public StudentsController(IDbService dbService)
         {
             _dbService = dbService;
@@ -22,21 +23,53 @@ namespace cw_3.Controllers
         [HttpGet]
         public IActionResult GetStudent()
         {
-            return Ok(_dbService.GetStudents());
+            var list = new List<Student>();
+
+            using (SqlConnection con = new SqlConnection(conString))
+            using (SqlCommand com = new SqlCommand())
+            {
+                com.Connection = con;
+                com.CommandText = "select * from Student";
+
+                con.Open();
+                SqlDataReader dr = com.ExecuteReader();
+                int id = 1;
+                while (dr.Read())
+                {
+                    var st = new Student();
+                    st.IdStudent = id;
+                    st.IndexNumber = dr["IndexNumber"].ToString();
+                    st.FirstName = dr["FirstName"].ToString();
+                    st.LastName = dr["LastName"].ToString();
+                    list.Add(st);
+                    id++;
+                }
+
+            }
+
+            return Ok(list);
         }
 
         [HttpGet("{id}")]
-        public IActionResult GetStudent(int id)
+        public IActionResult GetStudent(string id)
         {
-            if (id == 1)
+            using (SqlConnection con = new SqlConnection(conString))
+            using (SqlCommand com = new SqlCommand())
             {
-                return Ok("Kowalski");
-            }
-            else if (id == 2)
-            {
-                return Ok("Lewandowski");
-            }
-            return NotFound("Nie znaleziono studenta");
+                com.Connection = con;
+                com.CommandText = "select * from Student where Student.IndexNumber like @id";
+                com.Parameters.AddWithValue("id", id);
+                con.Open();
+                SqlDataReader dr = com.ExecuteReader();
+                if (dr.Read())
+                {
+                    var st = new Student();
+                    st.IndexNumber = dr["IndexNumber"].ToString();
+                    st.FirstName = dr["FirstName"].ToString();
+                    st.LastName = dr["LastName"].ToString();
+                    return Ok(st);
+                }
+            }return NotFound();
         }
 
         [HttpPost]
